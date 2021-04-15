@@ -71,7 +71,8 @@ class FlutterCallkeep extends EventManager {
 
   Future<bool> _hasDefaultPhoneAccount(Map<String, dynamic> options) async {
     final hasDefault = await _checkDefaultPhoneAccount();
-    final shouldOpenAccounts = await (_alert(options, hasDefault) as FutureOr<bool>);
+    final shouldOpenAccounts =
+        await (_alert(options, hasDefault) as Future<bool>);
     if (shouldOpenAccounts) {
       await _openPhoneAccounts();
       return true;
@@ -280,7 +281,8 @@ class FlutterCallkeep extends EventManager {
     await _channel.invokeMethod<void>('setup', {'options': options});
     final showAccountAlert = await _checkPhoneAccountPermission(
         options['additionalPermissions'] as List<String>? ?? <String>[]);
-    final shouldOpenAccounts = await (_alert(options, showAccountAlert) as FutureOr<bool>);
+    final shouldOpenAccounts =
+        await (_alert(options, showAccountAlert) as FutureOr<bool>);
 
     if (shouldOpenAccounts) {
       await _openPhoneAccounts();

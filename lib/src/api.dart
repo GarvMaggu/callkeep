@@ -53,7 +53,7 @@ class FlutterCallkeep extends EventManager {
     return _channel.invokeMethod<void>('registerEvents', <String, dynamic>{});
   }
 
-  Future<bool> hasDefaultPhoneAccount(
+  Future<bool?> hasDefaultPhoneAccount(
       BuildContext context, Map<String, dynamic> options) async {
     _context = context;
     if (!isIOS) {
@@ -69,11 +69,11 @@ class FlutterCallkeep extends EventManager {
         .invokeMethod<bool>('checkDefaultPhoneAccount', <String, dynamic>{});
   }
 
-  Future<bool> _hasDefaultPhoneAccount(Map<String, dynamic> options) async {
+  Future<bool?> _hasDefaultPhoneAccount(Map<String, dynamic> options) async {
     final hasDefault = await _checkDefaultPhoneAccount();
     final shouldOpenAccounts =
-        await (_alert(options, hasDefault) as Future<bool>);
-    if (shouldOpenAccounts) {
+        await (_alert(options, hasDefault) as Future<bool?>);
+    if (shouldOpenAccounts ?? true) {
       await _openPhoneAccounts();
       return true;
     }
@@ -171,7 +171,7 @@ class FlutterCallkeep extends EventManager {
   Future<void> endAllCalls() async =>
       await _channel.invokeMethod<void>('endAllCalls', <String, dynamic>{});
 
-  FutureOr<bool?> hasPhoneAccount() async {
+  Future<bool?> hasPhoneAccount() async {
     if (isIOS) {
       return true;
     }
@@ -277,14 +277,14 @@ class FlutterCallkeep extends EventManager {
         .invokeMethod<void>('setup', <String, dynamic>{'options': options});
   }
 
-  Future<bool> _setupAndroid(Map<String, dynamic> options) async {
+  Future<bool?> _setupAndroid(Map<String, dynamic> options) async {
     await _channel.invokeMethod<void>('setup', {'options': options});
     final showAccountAlert = await _checkPhoneAccountPermission(
         options['additionalPermissions'] as List<String>? ?? <String>[]);
     final shouldOpenAccounts =
-        await (_alert(options, showAccountAlert) as FutureOr<bool>);
+        await (_alert(options, showAccountAlert) as Future<bool?>);
 
-    if (shouldOpenAccounts) {
+    if (shouldOpenAccounts ?? true) {
       await _openPhoneAccounts();
       return true;
     }

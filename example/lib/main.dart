@@ -26,7 +26,8 @@ bool _callKeepInited = false;
 }
 */
 
-Future<dynamic> myBackgroundMessageHandler(Map<String, dynamic> message) {
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage data) async {
+  Map<String, dynamic> message = data.data;
   print('backgroundMessage: message => ${message.toString()}');
   var payload = message['data'];
   var callerId = payload['caller_id'] as String;
@@ -34,12 +35,12 @@ Future<dynamic> myBackgroundMessageHandler(Map<String, dynamic> message) {
   var uuid = payload['uuid'] as String;
   var hasVideo = payload['has_video'] == "true";
 
-  final callUUID = uuid ?? Uuid().v4();
+  final callUUID = uuid;
   _callKeep.on(CallKeepPerformAnswerCallAction(),
       (CallKeepPerformAnswerCallAction event) {
     print(
         'backgroundMessage: CallKeepPerformAnswerCallAction ${event.callUUID}');
-    _callKeep.startCall(event.callUUID, callerId, callerNmae);
+    _callKeep.startCall(event.callUUID ?? '', callerId, callerNmae);
 
     Timer(const Duration(seconds: 1), () {
       print(
@@ -88,7 +89,6 @@ Future<dynamic> myBackgroundMessageHandler(Map<String, dynamic> message) {
 
   // Or do other work.
   */
-  return null;
 }
 
 void main() {
@@ -113,24 +113,19 @@ class HomePage extends StatefulWidget {
 
 class Call {
   Call(this.number);
-  String number;
+  String? number;
   bool held = false;
   bool muted = false;
 }
 
 class _MyAppState extends State<HomePage> {
   final FlutterCallkeep _callKeep = FlutterCallkeep();
-  Map<String, Call> calls = {};
+  Map<String?, Call> calls = {};
   String newUUID() => Uuid().v4();
-  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging();
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
   void iOS_Permission() {
-    _firebaseMessaging.requestNotificationPermissions(
-        IosNotificationSettings(sound: true, badge: true, alert: true));
-    _firebaseMessaging.onIosSettingsRegistered
-        .listen((IosNotificationSettings settings) {
-      print('Settings registered: $settings');
-    });
+    _firebaseMessaging.requestPermission(sound: true, badge: true, alert: true);
   }
 
   void removeCall(String callUUID) {
@@ -141,31 +136,31 @@ class _MyAppState extends State<HomePage> {
 
   void setCallHeld(String callUUID, bool held) {
     setState(() {
-      calls[callUUID].held = held;
+      calls[callUUID]!.held = held;
     });
   }
 
   void setCallMuted(String callUUID, bool muted) {
     setState(() {
-      calls[callUUID].muted = muted;
+      calls[callUUID]!.muted = muted;
     });
   }
 
   Future<void> answerCall(CallKeepPerformAnswerCallAction event) async {
-    final String callUUID = event.callUUID;
-    final String number = calls[callUUID].number;
+    final String? callUUID = event.callUUID ?? '';
+    final String? number = calls[callUUID]!.number;
     print('[answerCall] $callUUID, number: $number');
 
-    _callKeep.startCall(event.callUUID, number, number);
+    _callKeep.startCall(event.callUUID ?? '', number ?? '', number ?? '');
     Timer(const Duration(seconds: 1), () {
       print('[setCurrentCallActive] $callUUID, number: $number');
-      _callKeep.setCurrentCallActive(callUUID);
+      _callKeep.setCurrentCallActive(callUUID ?? '');
     });
   }
 
   Future<void> endCall(CallKeepPerformEndCallAction event) async {
     print('endCall: ${event.callUUID}');
-    removeCall(event.callUUID);
+    removeCall(event.callUUID ?? '');
   }
 
   Future<void> didPerformDTMFAction(CallKeepDidPerformDTMFAction event) async {
@@ -180,11 +175,11 @@ class _MyAppState extends State<HomePage> {
     }
     final String callUUID = event.callUUID ?? newUUID();
     setState(() {
-      calls[callUUID] = Call(event.handle);
+      calls[callUUID] = Call(event.handle ?? '');
     });
     print('[didReceiveStartCallAction] $callUUID, number: ${event.handle}');
 
-    _callKeep.startCall(callUUID, event.handle, event.handle);
+    _callKeep.startCall(callUUID, event.handle ?? '', event.handle ?? '');
 
     Timer(const Duration(seconds: 1), () {
       print('[setCurrentCallActive] $callUUID, number: ${event.handle}');
@@ -194,20 +189,20 @@ class _MyAppState extends State<HomePage> {
 
   Future<void> didPerformSetMutedCallAction(
       CallKeepDidPerformSetMutedCallAction event) async {
-    final String number = calls[event.callUUID].number;
+    final String? number = calls[event.callUUID]!.number;
     print(
         '[didPerformSetMutedCallAction] ${event.callUUID}, number: $number (${event.muted})');
 
-    setCallMuted(event.callUUID, event.muted);
+    setCallMuted(event.callUUID ?? '', event.muted ?? false);
   }
 
   Future<void> didToggleHoldCallAction(
       CallKeepDidToggleHoldAction event) async {
-    final String number = calls[event.callUUID].number;
+    final String? number = calls[event.callUUID]!.number;
     print(
         '[didToggleHoldCallAction] ${event.callUUID}, number: $number (${event.hold})');
 
-    setCallHeld(event.callUUID, event.hold);
+    setCallHeld(event.callUUID ?? '', event.hold ?? false);
   }
 
   Future<void> hangup(String callUUID) async {
@@ -217,20 +212,20 @@ class _MyAppState extends State<HomePage> {
 
   Future<void> setOnHold(String callUUID, bool held) async {
     _callKeep.setOnHold(callUUID, held);
-    final String handle = calls[callUUID].number;
+    final String? handle = calls[callUUID]!.number;
     print('[setOnHold: $held] $callUUID, number: $handle');
     setCallHeld(callUUID, held);
   }
 
   Future<void> setMutedCall(String callUUID, bool muted) async {
     _callKeep.setMutedCall(callUUID, muted);
-    final String handle = calls[callUUID].number;
+    final String? handle = calls[callUUID]!.number;
     print('[setMutedCall: $muted] $callUUID, number: $handle');
     setCallMuted(callUUID, muted);
   }
 
   Future<void> updateDisplay(String callUUID) async {
-    final String number = calls[callUUID].number;
+    final String? number = calls[callUUID]!.number;
     // Workaround because Android doesn't display well displayName, se we have to switch ...
     if (isIOS) {
       _callKeep.updateDisplay(callUUID,
@@ -255,7 +250,7 @@ class _MyAppState extends State<HomePage> {
       calls[callUUID] = Call(number);
     });
     print('Display incoming call now');
-    final bool hasPhoneAccount = await _callKeep.hasPhoneAccount();
+    final bool hasPhoneAccount = await _callKeep.hasPhoneAccount() ?? false;
     if (!hasPhoneAccount) {
       await _callKeep.hasDefaultPhoneAccount(context, <String, dynamic>{
         'alertTitle': 'Permissions required',
@@ -316,27 +311,23 @@ class _MyAppState extends State<HomePage> {
       //  _firebaseMessaging.requestNotificationPermissions();
 
       _firebaseMessaging.getToken().then((token) {
-        print('[FCM] token => ' + token);
+        print(token);
       });
+      FirebaseMessaging.onMessage.listen(_firebaseOnMessageHandler);
+      FirebaseMessaging.onMessageOpenedApp.listen(_firebaseOnMessageHandler);
+      FirebaseMessaging.onBackgroundMessage(
+          _firebaseMessagingBackgroundHandler);
+    }
+  }
 
-      _firebaseMessaging.configure(
-        onMessage: (Map<String, dynamic> message) async {
-          print('onMessage: $message');
-          if (message.containsKey('data')) {
-            // Handle data message
-            final dynamic data = message['data'];
-            var number = data['body'] as String;
-            await displayIncomingCall(number);
-          }
-        },
-        onBackgroundMessage: myBackgroundMessageHandler,
-        onLaunch: (Map<String, dynamic> message) async {
-          print('onLaunch: $message');
-        },
-        onResume: (Map<String, dynamic> message) async {
-          print('onResume: $message');
-        },
-      );
+  Future<void> _firebaseOnMessageHandler(RemoteMessage data) async {
+    Map<String, dynamic> message = data.data;
+    print('onMessage: $message');
+    if (message.containsKey('data')) {
+      // Handle data message
+      final dynamic data = message['data'];
+      var number = data['body'] as String;
+      await displayIncomingCall(number);
     }
   }
 
@@ -344,40 +335,41 @@ class _MyAppState extends State<HomePage> {
     return Column(
         mainAxisAlignment: MainAxisAlignment.start,
         children: calls.entries
-            .map((MapEntry<String, Call> item) =>
-                Column(mainAxisAlignment: MainAxisAlignment.start, children: [
-                  Text('number: ${item.value.number}'),
-                  Text('uuid: ${item.key}'),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+            .map<Widget>((MapEntry<String?, Call> item) => Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
                     children: <Widget>[
-                      RaisedButton(
-                        onPressed: () async {
-                          setOnHold(item.key, !item.value.held);
-                        },
-                        child: Text(item.value.held ? 'Unhold' : 'Hold'),
-                      ),
-                      RaisedButton(
-                        onPressed: () async {
-                          updateDisplay(item.key);
-                        },
-                        child: const Text('Display'),
-                      ),
-                      RaisedButton(
-                        onPressed: () async {
-                          setMutedCall(item.key, !item.value.muted);
-                        },
-                        child: Text(item.value.muted ? 'Unmute' : 'Mute'),
-                      ),
-                      RaisedButton(
-                        onPressed: () async {
-                          hangup(item.key);
-                        },
-                        child: const Text('Hangup'),
-                      ),
-                    ],
-                  )
-                ]))
+                      Text('number: ${item.value.number}'),
+                      Text('uuid: ${item.key}'),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          ElevatedButton(
+                            onPressed: () async {
+                              setOnHold(item.key ?? '', !item.value.held);
+                            },
+                            child: Text(item.value.held ? 'Unhold' : 'Hold'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              updateDisplay(item.key ?? '');
+                            },
+                            child: const Text('Display'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              setMutedCall(item.key ?? '', !item.value.muted);
+                            },
+                            child: Text(item.value.muted ? 'Unmute' : 'Mute'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              hangup(item.key ?? '');
+                            },
+                            child: const Text('Hangup'),
+                          ),
+                        ],
+                      )
+                    ]))
             .toList());
   }
 
@@ -392,13 +384,13 @@ class _MyAppState extends State<HomePage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              RaisedButton(
+              ElevatedButton(
                 onPressed: () async {
                   displayIncomingCall('10086');
                 },
                 child: const Text('Display incoming call now'),
               ),
-              RaisedButton(
+              ElevatedButton(
                 onPressed: () async {
                   displayIncomingCallDelayed('10086');
                 },

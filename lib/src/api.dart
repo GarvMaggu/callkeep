@@ -29,7 +29,7 @@ class FlutterCallkeep extends EventManager {
   static final FlutterCallkeep _instance = FlutterCallkeep._internal();
   static const MethodChannel _channel = MethodChannel('FlutterCallKeep.Method');
   static const MethodChannel _event = MethodChannel('FlutterCallKeep.Event');
-  BuildContext _context;
+  BuildContext? _context;
 
   Future<void> setup(Map<String, dynamic> options) async {
     if (!isIOS) {
@@ -64,14 +64,14 @@ class FlutterCallkeep extends EventManager {
     return true;
   }
 
-  Future<bool> _checkDefaultPhoneAccount() async {
+  Future<bool?> _checkDefaultPhoneAccount() async {
     return await _channel
         .invokeMethod<bool>('checkDefaultPhoneAccount', <String, dynamic>{});
   }
 
   Future<bool> _hasDefaultPhoneAccount(Map<String, dynamic> options) async {
     final hasDefault = await _checkDefaultPhoneAccount();
-    final shouldOpenAccounts = await _alert(options, hasDefault);
+    final shouldOpenAccounts = await (_alert(options, hasDefault) as FutureOr<bool>);
     if (shouldOpenAccounts) {
       await _openPhoneAccounts();
       return true;
@@ -161,7 +161,7 @@ class FlutterCallkeep extends EventManager {
     }
   }
 
-  Future<bool> isCallActive(String uuid) async => await _channel
+  Future<bool?> isCallActive(String uuid) async => await _channel
       .invokeMethod<bool>('isCallActive', <String, dynamic>{'uuid': uuid});
 
   Future<void> endCall(String uuid) async => await _channel
@@ -170,7 +170,7 @@ class FlutterCallkeep extends EventManager {
   Future<void> endAllCalls() async =>
       await _channel.invokeMethod<void>('endAllCalls', <String, dynamic>{});
 
-  FutureOr<bool> hasPhoneAccount() async {
+  FutureOr<bool?> hasPhoneAccount() async {
     if (isIOS) {
       return true;
     }
@@ -178,7 +178,7 @@ class FlutterCallkeep extends EventManager {
         .invokeMethod<bool>('hasPhoneAccount', <String, dynamic>{});
   }
 
-  Future<bool> hasOutgoingCall() async {
+  Future<bool?> hasOutgoingCall() async {
     if (isIOS) {
       return true;
     }
@@ -221,7 +221,7 @@ class FlutterCallkeep extends EventManager {
   }
 
   Future<void> updateDisplay(String uuid,
-          {String displayName, String handle}) async =>
+          {String? displayName, String? handle}) async =>
       await _channel.invokeMethod<void>('updateDisplay', <String, dynamic>{
         'uuid': uuid,
         'displayName': displayName,
@@ -255,7 +255,7 @@ class FlutterCallkeep extends EventManager {
             'CallKeep.reportUpdatedCall was called from unsupported OS');
   }
 
-  Future<bool> backToForeground() async {
+  Future<bool?> backToForeground() async {
     if (isIOS) {
       return false;
     }
@@ -279,8 +279,8 @@ class FlutterCallkeep extends EventManager {
   Future<bool> _setupAndroid(Map<String, dynamic> options) async {
     await _channel.invokeMethod<void>('setup', {'options': options});
     final showAccountAlert = await _checkPhoneAccountPermission(
-        options['additionalPermissions'] as List<String> ?? <String>[]);
-    final shouldOpenAccounts = await _alert(options, showAccountAlert);
+        options['additionalPermissions'] as List<String>? ?? <String>[]);
+    final shouldOpenAccounts = await (_alert(options, showAccountAlert) as FutureOr<bool>);
 
     if (shouldOpenAccounts) {
       await _openPhoneAccounts();
@@ -296,8 +296,8 @@ class FlutterCallkeep extends EventManager {
     await _channel.invokeMethod<void>('openPhoneAccounts', <String, dynamic>{});
   }
 
-  Future<bool> _checkPhoneAccountPermission(
-      [List<String> optionalPermissions]) async {
+  Future<bool?> _checkPhoneAccountPermission(
+      [List<String>? optionalPermissions]) async {
     if (!Platform.isAndroid) {
       return true;
     }
@@ -307,20 +307,20 @@ class FlutterCallkeep extends EventManager {
     });
   }
 
-  Future<bool> _alert(Map<String, dynamic> options, bool condition) async {
+  Future<bool?> _alert(Map<String, dynamic> options, bool? condition) async {
     if (_context == null) {
       return false;
     }
     return await _showAlertDialog(
-        _context,
-        options['alertTitle'] as String,
-        options['alertDescription'] as String,
-        options['cancelButton'] as String,
-        options['okButton'] as String);
+        _context!,
+        options['alertTitle'] as String?,
+        options['alertDescription'] as String?,
+        options['cancelButton'] as String?,
+        options['okButton'] as String?);
   }
 
-  Future<bool> _showAlertDialog(BuildContext context, String alertTitle,
-      String alertDescription, String cancelButton, String okButton) {
+  Future<bool?> _showAlertDialog(BuildContext context, String? alertTitle,
+      String? alertDescription, String? cancelButton, String? okButton) {
     return showDialog<bool>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
@@ -345,16 +345,16 @@ class FlutterCallkeep extends EventManager {
 
   Future<void> eventListener(MethodCall call) async {
     print('[CallKeep] INFO: received event "${call.method}" ${call.arguments}');
-    final data = call.arguments as Map<dynamic, dynamic>;
+    final data = call.arguments as Map<dynamic, dynamic>?;
     switch (call.method) {
       case 'CallKeepDidReceiveStartCallAction':
-        emit(CallKeepDidReceiveStartCallAction.fromMap(data));
+        emit(CallKeepDidReceiveStartCallAction.fromMap(data!));
         break;
       case 'CallKeepPerformAnswerCallAction':
-        emit(CallKeepPerformAnswerCallAction.fromMap(data));
+        emit(CallKeepPerformAnswerCallAction.fromMap(data!));
         break;
       case 'CallKeepPerformEndCallAction':
-        emit(CallKeepPerformEndCallAction.fromMap(data));
+        emit(CallKeepPerformEndCallAction.fromMap(data!));
         break;
       case 'CallKeepDidActivateAudioSession':
         emit(CallKeepDidActivateAudioSession());
@@ -363,16 +363,16 @@ class FlutterCallkeep extends EventManager {
         emit(CallKeepDidActivateAudioSession());
         break;
       case 'CallKeepDidDisplayIncomingCall':
-        emit(CallKeepDidDisplayIncomingCall.fromMap(data));
+        emit(CallKeepDidDisplayIncomingCall.fromMap(data!));
         break;
       case 'CallKeepDidPerformSetMutedCallAction':
-        emit(CallKeepDidPerformSetMutedCallAction.fromMap(data));
+        emit(CallKeepDidPerformSetMutedCallAction.fromMap(data!));
         break;
       case 'CallKeepDidToggleHoldAction':
-        emit(CallKeepDidToggleHoldAction.fromMap(data));
+        emit(CallKeepDidToggleHoldAction.fromMap(data!));
         break;
       case 'CallKeepDidPerformDTMFAction':
-        emit(CallKeepDidPerformDTMFAction.fromMap(data));
+        emit(CallKeepDidPerformDTMFAction.fromMap(data!));
         break;
       case 'CallKeepProviderReset':
         emit(CallKeepProviderReset());
@@ -384,7 +384,7 @@ class FlutterCallkeep extends EventManager {
         emit(CallKeepDidLoadWithEvents());
         break;
       case 'CallKeepPushKitToken':
-        emit(CallKeepPushKitToken.fromMap(data));
+        emit(CallKeepPushKitToken.fromMap(data!));
         break;
     }
   }
